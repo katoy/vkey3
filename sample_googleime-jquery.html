@@ -1,0 +1,155 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="ja">
+    <head>
+        <title>Sample: call google ime</title>
+        <meta http-equiv="content-type" content="text/html;charset=utf-8">
+
+        <link href='http://fonts.googleapis.com/css?family=Droid+Serif&subset=latin' rel='stylesheet' type='text/css'>
+
+	<script src="http://code.jquery.com/jquery-1.4.2.min.js"></script>
+
+        <style>
+            body {
+                font-family: 'Droid Serif',serif;
+            }
+        </style>
+
+        <script type="text/javascript">
+
+            function h(s) {
+                var d = document.createElement('div');
+                var t = document.createTextNode(s);
+                d.appendChild(t);
+                return d.innerHTML;
+            }
+
+            $(function() {
+
+                // --- 初期処理 ---
+                // ページロード時は suggest を隠す
+                $("#suggest").hide();
+                // テキストボックスをフォーカス
+                $("#text").focus();
+
+
+                // テキストボックス
+                $("#text").keydown(function(e) {
+                    if (e.keyCode == 27) {          // Esc
+                        $("#suggest").hide();
+                    } else if (e.keyCode == 40) {   // ↓下矢印
+                        if ($("#suggest").is(":visible")) {  // suggest が表示されている
+                            $("#suggest").focus()[0].selectedIndex = 0;
+                            $(this).val($("#suggest").val());
+                        } else {
+                            $("#btn").click();
+                        }
+                        //} else if (e.keyCode == 32) {   // Space
+                        //    e.preventDefault(); //stop default event
+                        //    $("#btn").click();
+                    }
+                });
+
+                // 変換ボタン
+                $("#btn").click(function() {
+
+                    var text = document.getElementById('text').value;
+                    if (text === '') {
+                        return;
+                    }
+
+                    document.getElementById('result').innerHTML = "<p><img src='images/loading.gif' alt=''/></p>";
+
+                    $.getJSON("http://www6.atpages.jp/mgngmgng/misc/googlecgiproxy/?text=" + encodeURIComponent(text) + "&callback=?",function(json){
+                        var buf_1st = [];
+                        var suggests = [];
+                        $("#suggest").empty();  // Suggestをクリア
+
+                        for(var i = 0, len = json.length; i < len; i++) {
+                            var tmp = json[i];
+                            var input = tmp[0];
+                            var result = tmp[1];
+
+                            buf_1st.push(tmp[1][0]);
+
+                            var optgroup = $('<optgroup/>');
+                            optgroup.attr('label', input);
+
+                            for(var j = 0; j < result.length; j++) {
+                                var str = result[j];
+                                if ($.inArray(str, suggests) === -1) { // 既にSuggestに追加されていない
+                                    suggests.push(str);
+                                    optgroup.append($("<option/>").text(str));
+                                }
+                            }
+                            $("#suggest").append(optgroup);
+                        }
+                        // Suggestが0件
+                        if (suggests.length == 0) return;
+
+                        // ベストの候補を先頭に追加。
+                        var str = buf_1st.join('');
+                        if ($.inArray(str, suggests) === -1) {  // 既にSuggestに追加されていない
+                            $("#suggest").prepend($("<option/>").text(str));
+                        }
+                        // Suggestを表示
+                        document.getElementById('result').innerHTML = '';
+                        $("#suggest").show().focus()[0].selectedIndex = 0;
+                    });
+                });
+
+                // Suggestセレクトボックス
+                $("#suggest")
+                .dblclick(function(){
+                    $(this).hide();
+                    $("#text").val($(this).val().join(''));
+                    $("#text").focus();
+                })
+                .keydown(function(e){
+                    if (e.keyCode == 13) {           // Enter
+                        $(this).hide();
+                        $("#text").val($(this).val().join(''));
+                        $("#text").focus();
+                    } else if (e.keyCode == 27) {    // Esc
+                        $(this).hide();
+                        $("#text").focus();
+                    } else if(e.keyCode == 32) { // Space
+                        var selected_idx = $("#suggest").focus()[0].selectedIndex;
+                        if ( (selected_idx + 1) >= $("#suggest option").size() ){
+                            $("#suggest").focus()[0].selectedIndex = 0;
+                        } else {
+                            $("#suggest").focus()[0].selectedIndex++;
+                        }
+                    }
+                })
+                //.change(function(){
+                //     $("#text").val($(this).val());
+                //})
+                ;
+            });
+
+        </script>
+    </head>
+
+    <body>
+        <h2>Google かな漢字変換の呼び出しのサンプル 2 <br />
+            (jquery getJSONの利用, Selet ボックスでの候補表示)
+        </h2>
+        See:
+        <a target="_blank" href="http://www6.atpages.jp/mgngmgng/misc/googlecgiproxy/">
+            Google CGI for Japanese Input Proxy
+        </a>
+        <hr />
+        * [変換ボタン] ↓ キー：変換を開始 (combobox が表示されます)<br />
+        * Combobox 中 SPACE,↑↓ キー：選択候補移動  ESC：中止 　ENTER,ダブルクリック：決定<br />
+        * 複数項目の選択が可能です (ctrl + クリック または Command + クリック)<br />
+        <br />
+        入力例：あい いま きょう きしゃのきしゃがきしゃできしゃした わたしのなまえはなかのです<br/>
+        <div>
+            <input type="text" name="text" id="text" value="" autocomplete="off" size="60"/>
+            <input id="btn" type="button" value="変換">
+        </div>
+        <select id="suggest" size="10" multiple="multiple"></select>
+        <div id="result"></div>
+    </body>
+
+</html>
